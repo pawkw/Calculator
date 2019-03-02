@@ -163,6 +163,9 @@ public class Calculator {
             case('/'):
                 answer = x/y;
                 break;
+            case('%'):
+                answer = x%y;
+                break;
         }
         return answer;
     }
@@ -209,7 +212,7 @@ public class Calculator {
         // Get the operator. If there is an operator, that means we have a
         // right hand side. The term we got above will become the left hand side.
         char op = term.look();
-        while(op == '*' || op == '/') {
+        while(op == '*' || op == '/' || op == '%') {
             // Update the cursor to "consume" the operator.
             term.cursor++;
             // Get the right hand side.
@@ -234,6 +237,17 @@ public class Calculator {
             factor.cursor++;
             // Get the number.
             returnNode.data = -(getNumber(factor));
+            return returnNode;
+        } else if(factor.look() == '(') {
+            // Update the cursor to "consume" the bracket.
+            factor.cursor++;
+            // The the contents of the bracketed expression.
+            returnNode = parseExpression(factor);
+            // Check for matching bracket.
+            if(factor.look() != ')') {
+                return returnNode;
+            }
+            factor.cursor++;
             return returnNode;
         }
 
