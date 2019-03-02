@@ -38,7 +38,7 @@ class Node {
     Node leftHandSide;
     Node rightHandSide;
 
-    Node() {
+    public Node() {
         this.operator = '\0'; // This means null.
         this.data = 0;
         this.leftHandSide = null;
@@ -46,7 +46,7 @@ class Node {
     }
 
     // For example Node node = new Node('d', 5.0);
-    Node(char op, double data) {
+    public Node(char op, double data) {
         // Not needed, but good practice.
         this();
         this.operator = op;
@@ -54,7 +54,7 @@ class Node {
     }
 
     // For example Node node = new Node('+', new Node('d', 1.0), new Node('d', 2.0));
-    Node(char op, Node lhs, Node rhs) {
+    public Node(char op, Node lhs, Node rhs) {
         // Not needed, but good practice.
         this();
         this.operator = op;
@@ -63,6 +63,27 @@ class Node {
     }
 }
 
+// We need to define an exception for instances where the actual input does not match
+// the expected input.
+class UnexpectedInputException extends Exception {
+    private int cursor;
+    private String input;
+    private String expectation;
+    private char found;
+
+    public UnexpectedInputException(String input, int cursor, String expectation, char found) {
+        this.cursor = cursor;
+        this.input = input;
+        this.expectation = expectation;
+        this.found = found;
+    }
+
+    public String errorDetail() {
+        String error = this.input+'\n'+String.format("%"+(this.cursor+1)+"s", "^");
+        error += "\nExpected: "+this.expectation+" Found: "+this.found;
+        return error;
+    }
+}
 // We need to use a class here because we have to track what part of the
 // expression we are currently looking at AND we have to return nodes.
 // The only way to return both values, the node and the current location is
@@ -73,8 +94,8 @@ class InputHandler{
     String input;
     int cursor; // This stores an index in the String that gets updated.
 
-    InputHandler(String in) {
-        this.input = in;
+    public InputHandler(String in) {
+        this.input = in.replaceAll("\\s", "");
     }
 
     public char look() {
@@ -89,6 +110,22 @@ class InputHandler{
     public String remainder() {
         return this.input.substring(this.cursor);
     }
+
+    public void consume(char edible) throws UnexpectedInputException {
+        if(edible != this.input.charAt(this.cursor)) {
+            throw new UnexpectedInputException(this.input, this.cursor, String.valueOf(edible), this.look());
+        }
+        this.cursor++;
+        // System.out.println("Consumed: "+edible+" Cursor: "+Integer.toString(this.cursor));
+    }
+
+    public void consume(String edible) throws UnexpectedInputException {
+        if(!this.input.substring(this.cursor).startsWith(edible)) {
+            throw new UnexpectedInputException(this.input, this.cursor, edible, this.look());
+        }
+        this.cursor += edible.length();
+        // System.out.println("Consumed: "+edible+" Cursor: "+Integer.toString(this.cursor));
+    }
 }
 
 public class Calculator {
@@ -102,7 +139,7 @@ public class Calculator {
         System.out.print("Enter and expression to calculate: ");
         input = keyboardInput.nextLine();
         expression = new InputHandler(input);
-
+        System.out.println("Parsing: "+expression.input);
         // Break the expression down.
         breakdown = parseExpression(expression);
 
@@ -128,8 +165,9 @@ public class Calculator {
 
         // Otherwise, print out the left and right sides.
         System.out.print("(");
+        System.out.print(op+" ");
         printTree(tree.leftHandSide);
-        System.out.print(" "+op+" ");
+        System.out.print(" ");
         printTree(tree.rightHandSide);
         System.out.print(")");
     }
@@ -193,8 +231,13 @@ public class Calculator {
         // right hand side. The term we got above will become the left hand side.
         char op = expression.look();
         while(op == '+' || op == '-') {
-            // Update the cursor to "consume" the operator.
-            expression.cursor++;
+            // Update the cursor and "consume" the operator.
+            try {
+                expression.consume(op);
+            } catch (UnexpectedInputException e) {
+                System.out.println(e.errorDetail());
+            }
+
             // Get the right hand side.
             returnNode = new Node(op, returnNode, parseTerm(expression));
             op = expression.look();
@@ -213,8 +256,12 @@ public class Calculator {
         // right hand side. The term we got above will become the left hand side.
         char op = term.look();
         while(op == '*' || op == '/' || op == '%') {
-            // Update the cursor to "consume" the operator.
-            term.cursor++;
+            // Update the cursor and "consume" the operator.
+            try {
+                term.consume(op);
+            } catch (UnexpectedInputException e) {
+                System.out.println(e.errorDetail());
+            }
             // Get the right hand side.
             returnNode = new Node(op, returnNode, parseFactor(term));
             op = term.look();
@@ -234,20 +281,32 @@ public class Calculator {
         // ourselves. We can use it later to parse brackets with negatives.
         if(factor.look() == '-') {
             // Update the cursor to "consume" the minus sign.
-            factor.cursor++;
+            try {
+                factor.consume('-');
+            } catch (UnexpectedInputException e) {
+                System.out.println(e.errorDetail());
+            }
             // Get the number.
             returnNode.data = -(getNumber(factor));
             return returnNode;
         } else if(factor.look() == '(') {
             // Update the cursor to "consume" the bracket.
-            factor.cursor++;
+            try {
+                factor.consume('(');
+            } catch (UnexpectedInputException e) {
+                System.out.println(e.errorDetail());
+            }
             // The the contents of the bracketed expression.
             returnNode = parseExpression(factor);
             // Check for matching bracket.
             if(factor.look() != ')') {
                 return returnNode;
             }
-            factor.cursor++;
+            try {
+                factor.consume(')');
+            } catch (UnexpectedInputException e) {
+                System.out.println(e.errorDetail());
+            }
             return returnNode;
         }
 
@@ -280,7 +339,11 @@ public class Calculator {
         // Convert the string to an actual number.
         number = Float.parseFloat(getFloat);
         // Consume the number from the input.
-        numString.cursor += getFloat.length();
+        try {
+            numString.consume(getFloat);
+        } catch (UnexpectedInputException e) {
+            System.out.println(e.errorDetail());
+        }
 
         return number;
     }
