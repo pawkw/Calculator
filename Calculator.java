@@ -1,4 +1,5 @@
 // Possible extensions.
+// Update: These have been added.
 // * Change the program to handle modulo.
 // ** Change the program to handle brackets. The definition for factor would be:
 //        factor = number | -factor | (expression)
@@ -161,6 +162,11 @@ public class Calculator {
         if(op == 'd') {
             System.out.print(tree.data);
             return;
+        } else if(op == 'n') {
+            System.out.print("(- ");
+            printTree(tree.leftHandSide);
+            System.out.print(")");
+            return;
         }
 
         // Otherwise, print out the left and right sides.
@@ -180,6 +186,8 @@ public class Calculator {
         // If this is a data node, return the data.
         if(op == 'd') {
             return tree.data;
+        } else if(op == 'n') { // If this is a unary minus, return the negative.
+            return -calculate(tree.leftHandSide);
         }
 
         // Otherwise, get the value of the left and right sides.
@@ -274,7 +282,6 @@ public class Calculator {
     // The operator is going to be "double" and data is going to be the number.
     public static Node parseFactor(InputHandler factor) {
         Node returnNode = new Node();
-        returnNode.operator = 'd'; // 'd' for double.
 
         // See if there is a minus sign.
         // Java can parse this for us, but it is better to take care of it
@@ -286,8 +293,9 @@ public class Calculator {
             } catch (UnexpectedInputException e) {
                 System.out.println(e.errorDetail());
             }
-            // Get the number.
-            returnNode.data = -(getNumber(factor));
+            // Get the negated factor.
+            returnNode.operator = 'n'; // n for negate.
+            returnNode.leftHandSide = parseFactor(factor);
             return returnNode;
         } else if(factor.look() == '(') {
             // Update the cursor to "consume" the bracket.
@@ -299,9 +307,6 @@ public class Calculator {
             // The the contents of the bracketed expression.
             returnNode = parseExpression(factor);
             // Check for matching bracket.
-            if(factor.look() != ')') {
-                return returnNode;
-            }
             try {
                 factor.consume(')');
             } catch (UnexpectedInputException e) {
@@ -311,6 +316,7 @@ public class Calculator {
         }
 
         // Get the number.
+        returnNode.operator = 'd'; // 'd' for double.
         returnNode.data = getNumber(factor);
         return returnNode;
     }
